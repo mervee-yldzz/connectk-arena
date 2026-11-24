@@ -2,16 +2,12 @@ import csv
 import os
 import time
 from connectk.game import ConnectKGame, perft
+from connectk.search import MinimaxAgent
 
 
 def run_stage0():
-    # Öğrenci numarası sonu 08 -> (R=7, C=8, K=4, V=0, d=8)
     game = ConnectKGame(R=7, C=8, K=4, V=0, d=8)
-
-    # 1. Konum: Tamamen boş tahta
     s_empty = game.initial_state()
-
-    # 2. Konum: Henüz kimsenin kazanmadığı 12 hamlelik yarı dolu orta oyun konumu
     s_mid = game.state_from_moves([3, 4, 3, 4, 4, 3, 2, 5, 2, 5, 5, 2])
 
     os.makedirs("results", exist_ok=True)
@@ -33,8 +29,43 @@ def run_stage0():
         writer.writerow(["konum", "n", "dugum_sayisi", "sure_sn"])
         writer.writerows(rows)
 
-    print("\nTablo otomatik olarak results/stage0_perft.csv dosyasina kaydedildi.")
+    print("\nAşama 0 tablosu results/stage0_perft.csv dosyasına kaydedildi.")
+
+
+def run_stage1():
+    game = ConnectKGame(R=7, C=8, K=4, V=0, d=8)
+    agent = MinimaxAgent(game)
+
+    positions = [
+        ("K1_bos", game.initial_state()),
+        ("K2_merkez", game.state_from_moves([3, 4, 3, 4])),
+        ("K3_orta", game.state_from_moves([3, 4, 3, 4, 4, 3, 2, 5])),
+        ("K4_tehdit", game.state_from_moves([3, 0, 4, 0, 5, 0])),
+        ("K5_yaridolu", game.state_from_moves([3, 4, 3, 4, 4, 3, 2, 5, 2, 5, 5, 2])),
+    ]
+
+    os.makedirs("results", exist_ok=True)
+    rows = []
+
+    print(f"\n{'Konum':<12} | {'Derinlik':<8} | {'Hamle':<6} | {'Değer':<6} | {'Düğüm':<10} | {'b_etkin':<8} | {'Süre (sn)':<9}")
+    print("-" * 74)
+
+    for label, state in positions:
+        for depth in (2, 4, 6):
+            move, val = agent.choose_move(state, depth=depth)
+            nodes = agent.last_stats.nodes
+            b_eff = round(nodes ** (1.0 / depth), 4)
+            elapsed = round(agent.last_stats.elapsed, 5)
+            rows.append([label, depth, move, val, nodes, b_eff, elapsed])
+            print(f"{label:<12} | {depth:<8} | {move:<6} | {val:<6} | {nodes:<10} | {b_eff:<8} | {elapsed:<9}")
+
+    with open("results/stage1_minimax.csv", "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["konum", "derinlik", "hamle", "deger", "dugum_sayisi", "b_etkin", "sure_sn"])
+        writer.writerows(rows)
+
+    print("\nAşama 1 tablosu results/stage1_minimax.csv dosyasına kaydedildi.")
 
 
 if __name__ == "__main__":
-    run_stage0()
+    run_stage1()
