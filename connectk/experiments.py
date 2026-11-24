@@ -4,6 +4,8 @@ import random
 import struct
 import time
 import zlib
+from connectk.evaluate import Evaluator
+DEFAULT_WEIGHTS
 from connectk.game import ConnectKGame, perft
 from connectk.search import MinimaxAgent, AlphaBetaAgent
 
@@ -232,5 +234,78 @@ def run_stage2():
     print("\nAşama 2 tabloları ve results/stage2_nodes.png grafiği başarıyla kaydedildi.")
 
 
+
+
+def run_stage3():
+    game = ConnectKGame(R=7, C=8, K=4, V=0, d=8)
+    weight_sets = {
+        "W1_varsayilan": DEFAULT_WEIGHTS,
+        "W2_agresif": (18.0, -12.0, 5.0, -2.5, 1.0, 8.0),
+        "W3_savunmaci": (10.0, -22.0, 2.5, -5.5, 2.2, 6.0),
+    }
+
+    names = list(weight_sets.keys())
+    wins = {a: {b: 0.0 for b in names} for a in names}
+    rng = random.Random(8)
+
+    # Her çift için 5 kez A ilk, 5 kez B ilk = 10 oyun (toplam 30 eşleşme)
+    opening_pool = []
+    for _ in range(5):
+        s = game.initial_state()
+        for _ in range(3):
+            s = game.result(s, rng.choice(game.actions(s)))
+        opening_pool.append(s)
+
+    os.makedirs("results", exist_ok=True)
+    game_rows = []
+
+    print("Aşama 3: 3 ağırlık vektörü arasında Derinlik 5 turnuvası başlıyor (seed=8)...")
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            n1, n2 = names[i], names[j]
+            ag1 = AlphaBetaAgent(game, eval_fn=Evaluator(game, weight_sets[n1]), ordering="tactical")
+            ag2 = AlphaBetaAgent(game, eval_fn=Evaluator(game, weight_sets[n2]), ordering="tactical")
+
+            for game_idx, start_state in enumerate(opening_pool):
+                for side_swap in (False, True):
+                    first_name, first_ag = (n2, ag2) if side_swap else (n1, ag1)
+                    second_name, second_ag = (n1, ag1) if side_swap else (n2, ag2)
+
+                    st = start_state
+                    while not game.is_terminal(st):
+                        active_ag = first_ag if st.to_move == 1 else second_ag
+                        mv, _ = active_ag.choose_move(st, depth=5)
+                        st = game.result(st, mv)
+
+                    res = game.utility(st)
+                    if res == 1:
+                        wins[first_name][second_name] += 1.0
+                        outcome = first_name
+                    elif res == -1:
+                        wins[second_name][first_name] += 1.0
+                        outcome = second_name
+                    else:
+                        wins[first_name][second_name] += 0.5
+                        wins[second_name][first_name] += 0.5
+                        outcome = "berabere"
+                    game_rows.append([first_name, second_name, game_idx + 1, outcome])
+
+    with open("results/stage3_weights.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["agirlik_vektoru", *names, "toplam_puan"])
+        for a in names:
+            tot = sum(wins[a][b] for b in names if b != a)
+            w.writerow([a, *[wins[a][b] if a != b else "-" for b in names], tot])
+
+    with open("results/stage3_games.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["ilk_oyuncu_MAX", "ikinci_oyuncu_MIN", "acilis_no", "kazanan"])
+        w.writerows(game_rows)
+
+    print("\nAşama 3 Ağırlık Turnuvası Sonuçları (10 oyun üzerinden puan):")
+    for a in names:
+        print(f"  {a:<15}: {wins[a]}")
+
+
 if __name__ == "__main__":
-    run_stage2()
+    run_stage3()
