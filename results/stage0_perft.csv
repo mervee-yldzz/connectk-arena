@@ -1,0 +1,11 @@
+konum,n,dugum_sayisi,sure_sn
+bos_tahta,1,8,7e-05
+bos_tahta,2,64,0.00037
+bos_tahta,3,512,0.00288
+bos_tahta,4,4096,0.02322
+bos_tahta,5,32768,0.25997
+yari_dolu,1,8,7e-05
+yari_dolu,2,57,0.00032
+yari_dolu,3,407,0.00222
+yari_dolu,4,2822,0.01721
+yari_dolu,5,20011,0.12372
